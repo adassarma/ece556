@@ -52,7 +52,7 @@ void readfromFile(char *file)
             {
                 if(first)
                 {
-                    r = stof(line);
+                    r = stod(line);
                     first = !first;
                 }
                 else
@@ -116,8 +116,6 @@ void readfromFile(char *file)
 
 void computegain(int nodenum)
 {
-        if(locked.find(nodenum)!=locked.end())
-        return;
         
         int fs = 0,te = 0;
         Cell *node = CurrentCellLookUp[nodenum];
@@ -137,15 +135,6 @@ void computegain(int nodenum)
                     continue;
                 }
 
-                // for(auto &same_partition_neighbour:node->interior_connections)
-                // {
-                //     if(CurrentCellLookUp[same_partition_neighbour]->exterior_connections.find(net_num)!=CurrentCellLookUp[same_partition_neighbour]->exterior_connections.end())
-                //     {
-                //         --external_count;
-                //         break;
-                //     }
-                // }
-
                 ++external_count;
 
             }
@@ -157,11 +146,14 @@ void computegain(int nodenum)
         }
 
         if(gaintable[node->gain].find(nodenum)!=gaintable[node->gain].end())
-        gaintable[node->gain].erase(nodenum);
+            gaintable[node->gain].erase(nodenum);
+
         if(gaintable[node->gain].empty())
-             gaintable.erase(node->gain);
+            gaintable.erase(node->gain);
+
 
         node->gain = fs-te;
+        if(locked.find(nodenum)==locked.end())
         gaintable[node->gain].insert(nodenum);
 
 }
@@ -220,7 +212,7 @@ bool performswap(int nodenum)
     }
     currentareadiff = abs(partition0size-partition1size);
     maxnode->exterior_connections = exchange(maxnode->interior_connections,maxnode->exterior_connections);
-
+    computegain(nodenum);
     if(currentcutsize<=bestcutsize)
     {
         if(currentcutsize<bestcutsize)
@@ -243,11 +235,22 @@ bool performswap(int nodenum)
     return false;
 }
 
+void setup_gaintable()
+{
+    gaintable.clear();
+    for(auto&[nodenum,node]:CurrentCellLookUp)
+        gaintable[node->gain].insert(nodenum);
+}
+ 
 bool fm()
 {
+    if(iteration>0)
+    {
     copy_map_best_current();
+    setup_gaintable();
     locked.clear();
-    computegainfromlookup();
+    }
+    ++iteration;
     bool stagnate = true;
 
         for(int i =0;i<CurrentCellLookUp.size();++i)
@@ -255,16 +258,15 @@ bool fm()
             int maxgainnodenum;
             for(auto&[currentgain,nodenum]:gaintable)
             {
-                if(isoktomove(*nodenum.begin()))
+                for(auto&node:nodenum)
+                if(isoktomove(node))
                 {
-                    maxgainnodenum = *nodenum.begin();
-                    break;
+                    maxgainnodenum = node;
+                    goto escape;
                 }
             }
 
-            gaintable[CurrentCellLookUp[maxgainnodenum]->gain].erase(maxgainnodenum);
-            if(gaintable[CurrentCellLookUp[maxgainnodenum]->gain].empty())
-            gaintable.erase(CurrentCellLookUp[maxgainnodenum]->gain);
+            escape:
 
             locked.insert(maxgainnodenum);
 
@@ -290,7 +292,7 @@ void writetoFile(char* file)
             G1.push_back(nodenum);
             else
             G2.push_back(nodenum);
-        }
+        } 
         
         
         ofstream outputFile;
@@ -310,11 +312,12 @@ void writetoFile(char* file)
 int main(int argc,char **argv)
 {
         readfromFile(argv[1]);
-        lowerbound = (float)CurrentCellLookUp.size()*(1-r)/2;
-        upperbound = (float)CurrentCellLookUp.size()*(1+r)/2;
+        lowerbound = (double)CurrentCellLookUp.size()*(1-r)/2.0;
+        upperbound = (double)CurrentCellLookUp.size()*(1+r)/2.0;
         currentareadiff = abs(partition0size-partition1size);
         bestareadiff = currentareadiff;
         bestcutsize = currentcutsize;
+        computegainfromlookup();
         copy_map_current_best();
         while(!fm());
 
