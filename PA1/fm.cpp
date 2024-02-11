@@ -7,37 +7,32 @@
 #include "essentials.hpp"
 using namespace std;
 
-void copy_map_best_current()
+void construct_current_map()
 {
-    for(auto&[nodenum,node]:BestCellLookUp)
+    for(auto&[nodenum,partitionnum]:partitiontable)
     {
-        Cell *newcell = CurrentCellLookUp[nodenum];
-        newcell->exterior_connections = node->exterior_connections;
-        newcell->partition = node->partition;
-        newcell->gain = node->gain;
-        newcell->interior_connections = node->interior_connections; 
-        newcell->net = node->net;
-    }
-}
+        CurrentCellLookUp[nodenum]->partition = partitionnum;
+        CurrentCellLookUp[nodenum]->connections.clear();
+    } 
+        for(auto&[nodenum,partitionum]:partitiontable)
+        {   
+        auto nets = unique_nets[nodenum];
+        for(auto&net:nets)
+        {
 
-void copy_map_current_best()
-{
-    for(auto&[nodenum,node]:CurrentCellLookUp)
-    {
-        Cell *newcell;
-        if(BestCellLookUp.find(nodenum)==BestCellLookUp.end())
-        newcell = new Cell(nodenum,node->partition);
-        else
-        newcell = BestCellLookUp[nodenum];
-        newcell->exterior_connections = node->exterior_connections;
-        newcell->gain = node->gain;
-        newcell->interior_connections = node->interior_connections; 
-        newcell->net = node->net;
-        newcell->partition = node->partition;
-        BestCellLookUp[nodenum] = newcell;
-    }
-}
+         for(auto &net_elem:net)
+        {
+            if(net_elem==nodenum) continue;
+            Cell *placeholder = CurrentCellLookUp[net_elem];
+            placeholder->connections.insert(nodenum);
+            CurrentCellLookUp[nodenum]->connections.insert(net_elem);
+        }
 
+        }
+
+        }
+
+}
 
 void readfromFile(char *file)
 {
@@ -74,6 +69,7 @@ void readfromFile(char *file)
                             flip = 1-flip;    
                             cell = new Cell(cellnum,flip);
                             CurrentCellLookUp[cellnum] = cell;
+                            partitiontable[cellnum] = flip;
                             if(flip==0)
                             ++partition0size;
                             else
@@ -84,20 +80,12 @@ void readfromFile(char *file)
                             for(auto &net_elem:net)
                                 {
                                     Cell *placeholder = CurrentCellLookUp[net_elem];
-                                    if(placeholder->partition==cell->partition)
-                                    {
-                                        placeholder->interior_connections.insert(cellnum);
-                                        cell->interior_connections.insert(net_elem);
-                                    }    
-                                    else
-                                    {
-                                    placeholder->exterior_connections.insert(cellnum);
-                                    cell->exterior_connections.insert(net_elem);
-                                    if(flag)
+                                    placeholder->connections.insert(cellnum);
+                                    cell->connections.insert(net_elem);
+                                    if(flag&&cell->partition!=placeholder->partition)
                                     {
                                         flag = false;
                                         ++currentcutsize;
-                                    }
                                     }
                                 }
                             net.push_back(cellnum);
@@ -105,7 +93,16 @@ void readfromFile(char *file)
                     }
 
                     for(auto &net_elem:net)
-                        CurrentCellLookUp[net_elem]->net.push_back(net);
+                        unique_nets[net_elem].push_back(net);
+
+                    for(auto &net_elem:net)
+                    {
+                        for(auto&net_key:net)
+                        {
+                            if(net_elem==net_key) continue;
+                        CurrentCellLookUp[net_elem]->net[net_key].push_back(net);
+                        }
+                    }    
                 }
             }
     inputFile.close();
@@ -114,54 +111,90 @@ void readfromFile(char *file)
   else cout << "Unable to open file";
 }
 
-void computegain(int nodenum)
+void computegain()
 {
         
-        int fs = 0,te = 0;
-        Cell *node = CurrentCellLookUp[nodenum];
-        
-        for(auto &net_elem:node->net)
-        {
-            int internal_count = 0;
-            int external_count = 0;
-            for(auto& net_num:net_elem)
+            for(auto &[nodenum,net]:unique_nets)
+            {       
+            
+            auto node = CurrentCellLookUp[nodenum];
+            node->fs = 0;
+            node->te = 0;
+            for(auto& net_num_vec:net)
             {
+                int internal_count = 0;
+                int external_count = 0;
+                for(auto&net_num:net_num_vec)
+                {
                 if(net_num==nodenum)
                 continue;
 
-                if(node->interior_connections.find(net_num)!=node->interior_connections.end())
+                if(node->partition==CurrentCellLookUp[net_num]->partition)
                 {
                     ++internal_count;
                     continue;
                 }
 
                 ++external_count;
+                }
 
-            }
+            if(internal_count==net_num_vec.size()-1)
+            ++node->te;
+            else if(external_count==net_num_vec.size()-1)
+            ++node->fs;
+            } 
 
-            if(internal_count==net_elem.size()-1)
-            ++te;
-            else if(external_count==net_elem.size()-1)
-            ++fs;
-        }
-
-        if(gaintable[node->gain].find(nodenum)!=gaintable[node->gain].end())
-            gaintable[node->gain].erase(nodenum);
-
-        if(gaintable[node->gain].empty())
-            gaintable.erase(node->gain);
-
-
-        node->gain = fs-te;
-        if(locked.find(nodenum)==locked.end())
+        node->gain = node->fs-node->te;
         gaintable[node->gain].insert(nodenum);
+
+         }  
 
 }
 
-void computegainfromlookup()
+
+
+void computeparticulargain(int nodenum)
 {
-    for(auto &[nodenum,node]:CurrentCellLookUp)
-        computegain(nodenum);
+              
+            
+            auto net = unique_nets[nodenum];
+            auto node = CurrentCellLookUp[nodenum];
+            node->fs = 0;
+            node->te = 0;
+            for(auto& net_num_vec:net)
+            {
+                int internal_count = 0;
+                int external_count = 0;
+                for(auto&net_num:net_num_vec)
+                {
+                if(net_num==nodenum)
+                continue;
+
+                if(node->partition==CurrentCellLookUp[net_num]->partition)
+                {
+                    ++internal_count;
+                    continue;
+                }
+
+                ++external_count;
+                }
+
+            if(internal_count==net_num_vec.size()-1)
+            ++node->te;
+            else if(external_count==net_num_vec.size()-1)
+            ++node->fs;
+            }
+
+    if(gaintable[node->gain].find(nodenum)!=gaintable[node->gain].end())
+            gaintable[node->gain].erase(nodenum);
+
+    if(gaintable[node->gain].empty())
+            gaintable.erase(node->gain);     
+
+        node->gain = node->fs-node->te;
+        gaintable[node->gain].insert(nodenum);
+
+
 }
 
 bool isoktomove(int nodenum)
@@ -186,20 +219,6 @@ bool performswap(int nodenum)
     Cell* maxnode = CurrentCellLookUp[nodenum];
     currentcutsize-=maxnode->gain;
 
-    for(auto &int_nodes:maxnode->interior_connections)
-    {
-        CurrentCellLookUp[int_nodes]->interior_connections.erase(nodenum);
-        CurrentCellLookUp[int_nodes]->exterior_connections.insert(nodenum);
-        computegain(int_nodes);
-    }
-
-    for(auto &ext_nodes:maxnode->exterior_connections)
-    {
-        CurrentCellLookUp[ext_nodes]->exterior_connections.erase(nodenum);
-        CurrentCellLookUp[ext_nodes]->interior_connections.insert(nodenum);
-        computegain(ext_nodes);
-    }
-
     if(maxnode->partition==0)
     {
         maxnode->partition = 1;
@@ -210,9 +229,20 @@ bool performswap(int nodenum)
         maxnode->partition = 0;
         --partition1size,++partition0size;
     }
+
+    for(auto &nodes:maxnode->connections)
+        computeparticulargain(nodes);
+    
     currentareadiff = abs(partition0size-partition1size);
-    maxnode->exterior_connections = exchange(maxnode->interior_connections,maxnode->exterior_connections);
-    computegain(nodenum);
+    swap(maxnode->fs,maxnode->te);
+    if(gaintable[maxnode->gain].find(nodenum)!=gaintable[maxnode->gain].end())
+            gaintable[maxnode->gain].erase(nodenum);
+
+    if(gaintable[maxnode->gain].empty())
+            gaintable.erase(maxnode->gain);
+
+    maxnode->gain = -maxnode->gain;        
+        
     if(currentcutsize<=bestcutsize)
     {
         if(currentcutsize<bestcutsize)
@@ -244,12 +274,8 @@ void setup_gaintable()
  
 bool fm()
 {
-    if(iteration>0)
-    {
-    copy_map_best_current();
-    setup_gaintable();
-    locked.clear();
-    }
+    cout<<iteration<<" "<<currentcutsize<<" "
+    <<" "<<partition0size<<" "<<partition1size<<"\n";
     ++iteration;
     bool stagnate = true;
 
@@ -259,21 +285,22 @@ bool fm()
             for(auto&[currentgain,nodenum]:gaintable)
             {
                 for(auto&node:nodenum)
+                {
                 if(isoktomove(node))
                 {
                     maxgainnodenum = node;
                     goto escape;
                 }
+                }
             }
-
+            return stagnate;
             escape:
-
             locked.insert(maxgainnodenum);
 
             if(performswap(maxgainnodenum))
             {
                 stagnate=false;
-                copy_map_current_best();
+                partitiontable[maxgainnodenum] = CurrentCellLookUp[maxgainnodenum]->partition;
             }
 
         }
@@ -286,9 +313,9 @@ void writetoFile(char* file)
         
         vector<int>G1;
         vector<int>G2;
-        for(auto &[nodenum,node]:BestCellLookUp)
+        for(auto &[nodenum,partitionnum]:partitiontable)
         {
-            if(node->partition==0)
+            if(partitionnum==0)
             G1.push_back(nodenum);
             else
             G2.push_back(nodenum);
@@ -317,9 +344,17 @@ int main(int argc,char **argv)
         currentareadiff = abs(partition0size-partition1size);
         bestareadiff = currentareadiff;
         bestcutsize = currentcutsize;
-        computegainfromlookup();
-        copy_map_current_best();
-        while(!fm());
+        computegain();
+        while(!fm())
+        {
+            construct_current_map();
+            computegain();
+            locked.clear();
+            currentcutsize = bestcutsize;
+            currentareadiff = bestareadiff;
+            partition0size = bestpartition0size;
+            partition1size = bestpartition1size;
+        }
 
         writetoFile(argv[2]);
 

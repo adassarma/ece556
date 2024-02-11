@@ -1,6 +1,7 @@
 #pragma once
 #include<string>
 #include<unordered_set>
+#include<unordered_map>
 #include<vector>
 using namespace std;
 struct Cell
@@ -19,13 +20,15 @@ struct Cell
     int number;
     int partition;
     int gain;
-    unordered_set<int> interior_connections;
-    unordered_set<int> exterior_connections;
-    vector<vector<int>> net;
+    int fs;
+    int te;
+    unordered_set<int> connections;
+    unordered_map<int,vector<vector<int>>> net;
 };
 
+unordered_map<int,vector<vector<int>>> unique_nets;
+unordered_map<int,int> partitiontable;
 map<int,Cell*>CurrentCellLookUp;
-map<int,Cell*>BestCellLookUp;
 map<int,unordered_set<int>,greater<int>>gaintable;
 unordered_set<int> locked;
 double lowerbound;
@@ -40,3 +43,5 @@ double currentareadiff;
 double bestareadiff;
 int iteration = 0;
 double r = 0.0;
+
+void writetoFile(char* file);
