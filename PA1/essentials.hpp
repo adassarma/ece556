@@ -23,7 +23,7 @@ struct Cell
     int fs;
     int te;
     unordered_set<int> connections;
-    unordered_map<int,vector<vector<int>>> net;
+    //unordered_map<int,vector<vector<int>>> net;
 };
 
 unordered_map<int,vector<vector<int>>> unique_nets;
@@ -31,6 +31,7 @@ unordered_map<int,int> partitiontable;
 map<int,Cell*>CurrentCellLookUp;
 map<int,unordered_set<int>,greater<int>>gaintable;
 unordered_set<int> locked;
+vector<int> pendingpartitionswap;
 double lowerbound;
 double upperbound;
 double partition0size;

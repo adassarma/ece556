@@ -55,6 +55,7 @@ void readfromFile(char *file)
                     istringstream ss(line);
                     string temp;
                     vector<int> net;
+                    unordered_set<int> checker;
                     bool flag = true;
                     while(getline(ss,temp,' '))
                     {
@@ -89,20 +90,26 @@ void readfromFile(char *file)
                                     }
                                 }
                             net.push_back(cellnum);
+                            if(checker.find(cellnum)!=checker.end())
+                            {
+                                cout<<"Self-loop detected!"<<"\n";
+                            }
+                            else
+                            checker.insert(cellnum);
                         }
                     }
 
                     for(auto &net_elem:net)
                         unique_nets[net_elem].push_back(net);
 
-                    for(auto &net_elem:net)
-                    {
-                        for(auto&net_key:net)
-                        {
-                            if(net_elem==net_key) continue;
-                        CurrentCellLookUp[net_elem]->net[net_key].push_back(net);
-                        }
-                    }    
+                    // for(auto &net_elem:net)
+                    // {
+                    //     for(auto&net_key:net)
+                    //     {
+                    //         if(net_elem==net_key) continue;
+                    //     CurrentCellLookUp[net_elem]->net[net_key].push_back(net);
+                    //     }
+                    // }    
                 }
             }
     inputFile.close();
@@ -231,17 +238,20 @@ bool performswap(int nodenum)
     }
 
     for(auto &nodes:maxnode->connections)
-        computeparticulargain(nodes);
+    {
+        if(locked.find(nodes)==locked.end())
+            computeparticulargain(nodes);
+    }    
     
     currentareadiff = abs(partition0size-partition1size);
-    swap(maxnode->fs,maxnode->te);
+    
     if(gaintable[maxnode->gain].find(nodenum)!=gaintable[maxnode->gain].end())
             gaintable[maxnode->gain].erase(nodenum);
 
     if(gaintable[maxnode->gain].empty())
             gaintable.erase(maxnode->gain);
 
-    maxnode->gain = -maxnode->gain;        
+           
         
     if(currentcutsize<=bestcutsize)
     {
@@ -264,13 +274,6 @@ bool performswap(int nodenum)
 
     return false;
 }
-
-void setup_gaintable()
-{
-    gaintable.clear();
-    for(auto&[nodenum,node]:CurrentCellLookUp)
-        gaintable[node->gain].insert(nodenum);
-}
  
 bool fm()
 {
@@ -279,7 +282,7 @@ bool fm()
     ++iteration;
     bool stagnate = true;
 
-        for(int i =0;i<CurrentCellLookUp.size();++i)
+        while(locked.size()!=CurrentCellLookUp.size())//for(int i =0;i<CurrentCellLookUp.size();++i)
         {
             int maxgainnodenum;
             for(auto&[currentgain,nodenum]:gaintable)
@@ -293,14 +296,20 @@ bool fm()
                 }
                 }
             }
+            cout<<"I am here!\n";
             return stagnate;
             escape:
-            locked.insert(maxgainnodenum);
 
+            if(locked.find(maxgainnodenum)!=locked.end())
+            cout<<"Error!\n";
+            locked.insert(maxgainnodenum);
+            pendingpartitionswap.push_back(maxgainnodenum);
             if(performswap(maxgainnodenum))
             {
                 stagnate=false;
-                partitiontable[maxgainnodenum] = CurrentCellLookUp[maxgainnodenum]->partition;
+                for(auto&pendingnodes:pendingpartitionswap)
+                    partitiontable[pendingnodes] = CurrentCellLookUp[pendingnodes]->partition;
+                pendingpartitionswap.clear();
             }
 
         }
@@ -348,10 +357,11 @@ int main(int argc,char **argv)
         while(!fm())
         {
             construct_current_map();
-            computegain();
+            cout<<"Size of gaintable is: "<<gaintable.size()<<"\n";
             locked.clear();
+            computegain();
+            cout<<"Highest gain value for this iteration: "<<gaintable.begin()->first<<"\n";
             currentcutsize = bestcutsize;
-            currentareadiff = bestareadiff;
             partition0size = bestpartition0size;
             partition1size = bestpartition1size;
         }
