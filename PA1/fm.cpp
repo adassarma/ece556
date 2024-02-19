@@ -40,6 +40,7 @@ void readfromFile(char *file)
     string line;
     bool first = true;
     ifstream inputFile;
+    int netnumber = 0;
     inputFile.open(file,ios::in);
     if (inputFile.is_open())
     {
@@ -52,21 +53,24 @@ void readfromFile(char *file)
                 }
                 else
                 {
+                    ++netnumber;
                     istringstream ss(line);
                     string temp;
                     vector<int> net;
-                    unordered_set<int> duplicate;
+                    //unordered_set<int> duplicate;
                     bool flag = true;
                     while(getline(ss,temp,' '))
                     {
                         char ch = temp[0];
+                        if(netnumber==53)
+                        cout<<"In critical path: "<<ch<<"\n";
                         if(temp[0]=='c')
                         {
                             temp.erase(temp.begin());
                             int cellnum = stoi(temp);
-                           if(duplicate.find(cellnum)!=duplicate.end())
-                           continue;
-                            duplicate.insert(cellnum);
+                           //if(duplicate.find(cellnum)!=duplicate.end())
+                           //continue;
+                            //duplicate.insert(cellnum);
                             Cell *cell;
                             if(CurrentCellLookUp.find(cellnum)==CurrentCellLookUp.end())
                             {
@@ -96,17 +100,11 @@ void readfromFile(char *file)
                         }
                     }
 
-                    for(auto &net_elem:net)
-                        unique_nets[net_elem].push_back(net);
+                    //if(net.size()==1)
+                    cout<<"NET:n"<<netnumber<<"Element: "<<net[0]<<"\n";
 
-                    // for(auto &net_elem:net)
-                    // {
-                    //     for(auto&net_key:net)
-                    //     {
-                    //         if(net_elem==net_key) continue;
-                    //     CurrentCellLookUp[net_elem]->net[net_key].push_back(net);
-                    //     }
-                    // }    
+                    for(auto &net_elem:net)
+                        unique_nets[net_elem].push_back(net);    
                 }
             }
     inputFile.close();
