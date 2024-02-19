@@ -55,7 +55,7 @@ void readfromFile(char *file)
                     istringstream ss(line);
                     string temp;
                     vector<int> net;
-                    unordered_set<int> checker;
+                    unordered_set<int> duplicate;
                     bool flag = true;
                     while(getline(ss,temp,' '))
                     {
@@ -64,6 +64,9 @@ void readfromFile(char *file)
                         {
                             temp.erase(temp.begin());
                             int cellnum = stoi(temp);
+                           if(duplicate.find(cellnum)!=duplicate.end())
+                           continue;
+                            duplicate.insert(cellnum);
                             Cell *cell;
                             if(CurrentCellLookUp.find(cellnum)==CurrentCellLookUp.end())
                             {
@@ -90,12 +93,6 @@ void readfromFile(char *file)
                                     }
                                 }
                             net.push_back(cellnum);
-                            if(checker.find(cellnum)!=checker.end())
-                            {
-                                cout<<"Self-loop detected!"<<"\n";
-                            }
-                            else
-                            checker.insert(cellnum);
                         }
                     }
 
@@ -280,6 +277,7 @@ bool fm()
     cout<<iteration<<" "<<currentcutsize<<" "
     <<" "<<partition0size<<" "<<partition1size<<"\n";
     ++iteration;
+    if(iteration==5) return true;
     bool stagnate = true;
 
         while(locked.size()!=CurrentCellLookUp.size())//for(int i =0;i<CurrentCellLookUp.size();++i)
