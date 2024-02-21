@@ -22,13 +22,16 @@ struct Cell
     int gain;
     int fs;
     int te;
-    unordered_set<int> connections;
-    //unordered_map<int,vector<vector<int>>> net;
+    vector<int> connections;
 };
 
-unordered_map<int,vector<vector<int>>> unique_nets;
+vector<vector<int>> unique_nets;
+vector<int> netpart0;
+vector<int> netpart1;
 unordered_map<int,int> partitiontable;
 map<int,Cell*>CurrentCellLookUp;
+unordered_set<int> visitednode;
+unordered_set<int> locallyvisited;
 map<int,unordered_set<int>,greater<int>>gaintable;
 unordered_set<int> locked;
 vector<int> pendingpartitionswap;
@@ -44,5 +47,3 @@ double currentareadiff;
 double bestareadiff;
 int iteration = 0;
 double r = 0.0;
-
-void writetoFile(char* file);

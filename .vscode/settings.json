@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "unordered_map": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "*.tcc": "cpp",
+        "deque": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp"
     }
 }

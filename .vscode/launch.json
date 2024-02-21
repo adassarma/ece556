@@ -8,7 +8,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/PA1/fm",
-        "args": ["./input_pa1/dummy.dat"],
+        "args": ["./input_pa1/input_0.dat"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],
